@@ -1,0 +1,62 @@
+---
+title: "ML_Project"
+author: "WentingXiong"
+date: "Tuesday, June 16, 2015"
+output: html_document
+---
+
+# Load the Traning Data
+Read the pml-training data set.
+```{r}
+dataTraining <- read.csv("pml-training.csv")
+```
+
+Subset columns that contain accelerometer data. 'Var' variable are 'NA' for more than 50% of the observations and 'total' is derived from the x,y,z variables. Thus, ignore 'var' and 'total' to simplify the data set. 
+```{r}
+library(caret)
+library(randomForest)
+dataf <- data.frame(dataTraining[,grep('accel', names(dataTraining))], dataTraining[160])
+dataf <- data.frame(dataf[,-grep('var', names(dataf))])
+dataf <- data.frame(dataf[,-grep('total', names(dataf))])
+var <- nearZeroVar(dataf, saveMetrics=TRUE)
+var
+```
+According to the results, none of the variables are near zero variance, so no more variables will be ignored.
+
+# Establishing the Model with Training Data
+Fit a model with random forests. Apply this method to perform cross-validation internally in the process of creating the fitted model. 
+The out-of-sample accuracy is estimated to be the out-of-bag (OOB) estimate, which means that a separate explicit cross-validation step to get an unbiased estimate of the out-of-sample error is not required.
+
+```{r}
+rfModel <- randomForest(classe~., data=dataf)
+rfPred <- predict(rfModel, dataf)
+print(confusionMatrix(rfPred, dataf$classe))
+print(rfModel)
+```
+
+The out-of-sample accuracy is around 4.3%. 
+
+# Predictions with Testing Data
+
+Use the model above to predict classes with testing data. 
+
+```{r}
+dataTesting <- read.csv("pml-testing.csv")
+testPred <- predict(rfModel, dataTesting)
+testPred
+```
+
+This model achieves 100% accuracy on the training set. 
+
+# Submission
+```{r}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(testPred)
+```
